@@ -9,24 +9,30 @@
 			border-collapse: collapse;
 			border: 1px solid;
 		}
+		.buttonActive {
+			background-color: green;
+			color: black;
+			border: 2px solid #4CAF50;
+		}
 	</style>
 
  </head>
   <body>
-	<div id="link"></div>
-    <h1 id="h1Id">Upload an excel file to convert into JSON</h1>
 	<div>
 	    <input type="file" id="file_upload" />
 	    <button onclick="upload()">Upload</button>  
-		<button onclick="test()">Test</button>  
+		<button id="testButton">Test</button>  
+		<button id="testButton2">Test2</button>  
+		<input id="searchForm"/>  
 	</div>
-	<div id="filterArea">
-	</div>
-    <br>
-    <br>
+	<br>
+	<div id="filterArea"></div>
+	<br>
+	<div id="indexNav"></div>
+	<br>
     <!-- container to display the json result -->
-	<div id="tableArea">
-	</div>
+	<div id="tableArea"></div>
+	
     <textarea id="json-result" style="display:none;height:500px;width:350px;"></textarea>
     <script>
      
@@ -38,8 +44,128 @@
 			raw:"",
 			filtered:"",
 		};
-		let excelLocalURL = "./DB.xlsx";
+		let index={
+			start:0,
+			count:100,
+			defaultCount:100,
+			key:[],
+		};
+		
+		document.getElementById("testButton2").onclick=()=>testF();
+		
+		let stringNormalise = (string)=>{
+			const re=/[\W]/g;
+			string=string.replace(re,"").toUpperCase();
+			return string
+		}
+		
+		document.getElementById("testButton").onclick=()=>searchKey(resultData.filtered);
+		
+		let searchKey = async(data)=>{
+			console.log(data);			
+			
+			const dataIndex = data.keys();
 
+			let temp=[];
+			
+			for (const key of dataIndex) {
+				temp[key]="";
+				Object.values(data[key]).map(item=>{
+					console.log(item);			
+					temp[key]=(temp[key]+stringNormalise(item));
+				})
+			}
+			console.log(temp);
+			return await temp;
+		};
+		
+		document.getElementById("searchForm").
+			addEventListener('input', e => {
+				string="";
+				if(event.target.value!==""){
+					searchKey(resultData.filtered).then(x=>{
+						console.log(x);
+						const re=/[\W]/g;
+						let temp1="";
+						let temp2=[];
+						let temp3="";
+						
+						//a[^e]*e[^i]*i[^o]*o[^u]*u
+						let i=1;
+						[...event.target.value.replace(re,"").toUpperCase()].forEach(c => {
+							c=c.toUpperCase();
+							if(i===1){
+								temp1=c;
+								i++;
+							}else{
+								temp1=temp1+"[^"+c+"]*"+c;
+							}
+						})
+						console.log(temp1);
+						temp1=new RegExp(temp1)
+						console.log(temp1);
+						
+						Object.entries(x).map(x=>{
+							//console.log(x+" : "+x.search(temp1))
+							if(x[1].search(temp1)!=-1){
+								temp2.push(x[0]);
+							}
+						})
+						return temp2;
+					}).then(x=>index.key=x).then(x=>refreshData(resultData.filtered,x));
+				}else{
+					console.log("empty")
+					index.key=[];
+					refreshData(resultData.filtered)
+				}
+			});
+
+		
+		indexNav=()=>{
+
+			let wrapper=document.createElement("div");
+			
+			let leftButton=document.createElement("button");
+			leftButton.innerHTML="<";
+			leftButton.setAttribute("id","leftButtonId");
+			
+			leftButton.onclick=()=>{
+				temp=index.count-index.defaultCount;
+				if(temp>0){
+					index.count=index.count-index.defaultCount;
+					document.getElementById("indexViewId").innerHTML=index.count;
+					updateData(resultData.raw,filterVar);
+				}
+			};
+	
+			let rightButton=document.createElement("button");
+			rightButton.innerHTML=">";
+			rightButton.setAttribute("id","rightButtonId");
+			
+			rightButton.onclick=()=>{
+				temp=index.count+index.defaultCount;
+				if(temp>0){
+					index.count=index.count+index.defaultCount;
+					document.getElementById("indexViewId").innerHTML=index.count;
+					updateData(resultData.raw,filterVar);
+				}
+			};
+			
+			
+			let indexView=document.createElement("span");
+			indexView.innerHTML=index.count;
+			indexView.setAttribute("id","indexViewId");
+			
+			wrapper.append(leftButton);		
+			wrapper.append(indexView);		
+			wrapper.append(rightButton);
+
+			document.getElementById('indexNav').append(wrapper);
+		
+		}
+		
+		indexNav();
+		
 		/*filterAreaEvent.addEventListener('change',(event)=>{
 			if(event.target.checked){
 				filterObj[event.target.value]=true;
@@ -50,24 +176,30 @@
 			//filterVar=["NB BM_C","NB NOTA_C","NB PAJAK_C","NB BM","NB NOTA","NB PAJAK","FAKTUR","SUPPLIER","QTY/ CTN","JENIS","kode","jml_1"];
 			//console.log(filterVar);
 			updateData(resultData.raw,filterVar);
-		})
+		})*/
 		
-		function test(){
-			console.log(filterVar);
-		}*/
+		function test(a){
+			alert(a);
+		}
 		
 		function renderFilterElement(x){
 			filterArea=document.getElementById('filterArea');
-			//table=createElement('table',,filterArea);
-			//tr=
-			
 			x.map(itemX=>{
 				button=createElement("button",itemX,filterArea);
-				button.setAttribute('onClick',"()=>alert('click : '+itemX)");
-			})
-			
+				button.setAttribute("id",itemX+"_id");
+				button.onclick=()=>{
+					if(filterObj[itemX]){
+						filterObj[itemX]=false;
+						document.getElementById(itemX+"_id").setAttribute("class","");
+					}else{
+						filterObj[itemX]=true
+						document.getElementById(itemX+"_id").setAttribute("class","buttonActive");
+					}
+					filterVar=Object.keys(filterObj).filter(x=>filterObj[x]===true)
+					updateData(resultData.raw,filterVar);
+				};
+			})	
 		}
-		
 		
 		function old_renderFilterElement(x){
 			let label;
@@ -83,8 +215,6 @@
 				
 				Object.assign(filterObj,{[item]:false});
 				
-
-				
 				label=document.createElement('label');
 				label.innerHTML=item;
 				
@@ -94,14 +224,12 @@
 				//input.setAttribute('id','filterId');
 				input.setAttribute('value',item);
 				
-				
 				table.append(tr);
 				tr.append(td1);
 				tr.append(td2);
 				
 				td1.append(label);
 				td2.append(input);
-				
 			})
 			document.getElementById('filterArea').append(table);
 		}
@@ -113,7 +241,51 @@
 			return x;
 		};
 		
-		async function dynamicTable(data,header){
+		function dynamicTable(data,header,indexStart,indexCount,index){
+			console.log(data);
+			createTableHeader=()=>{
+				table=document.createElement('table');
+				
+				trHeader=document.createElement('tr');
+				createElement('th','No',trHeader);
+				Object.values(header).map(item=>{
+					createElement('th',item,trHeader);
+				})
+				table.append(trHeader);
+			}
+			let i=indexStart;
+			try{
+				if(index.length>0){
+					createTableHeader();
+						index.map(index=>{
+							tr=document.createElement('tr');
+							createElement('td',i+1,tr);
+							header.map(headerPointer=>{
+								createElement('td',data[index][headerPointer],tr);
+							})		
+							table.append(tr);
+							i++;
+						})
+				}else{
+					createTableHeader();
+					while(i<=indexCount&&i<data.length){
+						tr=document.createElement('tr');
+						createElement('td',i+1,tr);
+						header.map(headerPointer=>{
+							createElement('td',data[i][headerPointer],tr);
+						})		
+						table.append(tr);
+						i++
+					}
+				}
+			}catch{
+				console.log("err");
+			}
+			
+			return table;
+		}
+		
+		async function old_dynamicTable(data,header){
 			console.log(data)
 			console.log(header)
 			
@@ -165,7 +337,6 @@
 				}
 			})
 			
-			//console.log(x)	
 			return await x;
 		}
 		
@@ -204,18 +375,20 @@
 		}
 		
 		async function refreshData(data){
-			var resultEle=document.getElementById("json-result");
-		    resultEle.value=JSON.stringify(data,null,2);
-			resultEle.style.display='block';
-			document.getElementById('tableArea').append(await dynamicTable(data,filterVar));
+			//var resultEle=document.getElementById("json-result");
+		    //resultEle.value=JSON.stringify(data,null,2);
+			//resultEle.style.display='block';
+			document.getElementById('tableArea').innerHTML="";
+			document.getElementById('tableArea').append(await dynamicTable(data,filterVar,index.start,index.count,index.key));
 			
 		}
 		
 		function updateData(rawData,filterVar){
-			console.log(rawData)
 			if(filterVar.length>0){
 				document.getElementById('tableArea').innerHTML="";
-				filterData(rawData,filterVar).then(x=>normalizeData(x,filterVar)).then(x=>refreshData(x))
+				filterData(rawData,filterVar).then(x=>normalizeData(x,filterVar)).then(x=>{
+					return resultData.filtered=x;
+				}).then(x=>refreshData(x))
 			}else{
 				document.getElementById('tableArea').innerHTML="";
 			}
